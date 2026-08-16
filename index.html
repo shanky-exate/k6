@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Exate Performance Engineering Portal</title>
+  <!-- Local Offline Fonts & Vendor Libraries -->
+  <link rel="stylesheet" href="vendor/fonts.css">
+  <link rel="stylesheet" href="styles.css">
+  <script src="vendor/chart.js"></script>
+  <script src="vendor/lucide.js"></script>
+</head>
+<body>
+
+  <!-- Fullscreen Animated Standalone Login Portal -->
+  <div id="loginPortalScreen" class="login-portal-wrapper active">
+    <!-- Ambient Animated Gradient Orbs Background -->
+    <div class="login-bg-orb orb-1"></div>
+    <div class="login-bg-orb orb-2"></div>
+    <div class="login-bg-orb orb-3"></div>
+
+    <div class="login-card-container">
+      <div class="login-card-header">
+        <div class="login-brand-logo-box">
+          <img src="exate.png" alt="Exate Technology" class="login-brand-img">
+        </div>
+        <h2>Enterprise Capacity Portal</h2>
+        <p>Enter secret passcode to unlock performance analytics & SLA benchmarks.</p>
+      </div>
+
+      <form id="loginForm" onsubmit="handlePasscodeSubmit(event)">
+        <div class="login-input-wrapper">
+          <i data-lucide="lock" class="login-input-icon"></i>
+          <input type="password" id="authPasscodeInput" placeholder="Enter Secret Passcode" required autofocus autocomplete="current-password">
+          <button type="button" class="login-eye-btn" onclick="togglePasscodeVisibility()" title="Toggle Visibility">
+            <i data-lucide="eye" id="authEyeIcon" style="width:16px;"></i>
+          </button>
+        </div>
+
+        <div id="authGateError" class="login-error-badge">
+          <i data-lucide="alert-circle" style="width:14px;"></i> Incorrect secret passcode. Please try again.
+        </div>
+
+        <button type="submit" class="login-submit-btn" id="loginSubmitBtn">
+          <span>Authenticate & Unlock</span>
+          <i data-lucide="arrow-right" style="width:16px;"></i>
+        </button>
+      </form>
+
+      <div class="login-card-footer">
+        <div class="login-footer-security">
+          <i data-lucide="shield-check" style="width:13px; color:#34a853;"></i> Encrypted Security Gateway (SHA-256)
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Application Workspace Container -->
+  <div class="app-wrapper" id="appMainWrapper" style="display: none;">
+
+    <!-- Executive Sidebar Navigation (Rendered Dynamically) -->
+    <aside class="sidebar" id="mainSidebar">
+      <button class="sidebar-border-toggle-btn" id="sidebarToggleBtn" onclick="toggleSidebar()" title="Collapse / Expand Sidebar">
+        <span id="sidebarToggleIconBox" style="display:flex; align-items:center;"><i data-lucide="chevron-left" style="width: 14px; height: 14px;"></i></span>
+      </button>
+
+      <div class="sidebar-header">
+        <div class="brand-logo-img-wrapper">
+          <img src="exate.png" alt="Exate Technology Logo" class="brand-logo-img">
+        </div>
+        <div class="brand-text-wrapper">
+          <div class="brand-title">Performance</div>
+          <div class="brand-subtitle">Capacity Portal</div>
+        </div>
+      </div>
+
+      <div class="sidebar-scroll-area">
+        <nav class="sidebar-nav" id="sidebarNavContainer">
+          <!-- Populated dynamically via app.js -->
+        </nav>
+
+        <!-- Target Platform Selector Dropdown at Bottom of Sidebar -->
+        <div class="sidebar-platform-container">
+          <div class="sidebar-platform-label">
+            <i data-lucide="cpu" style="width: 13px; color: #1a73e8;"></i> Target Platform
+          </div>
+          <select id="platformSelector" class="sidebar-platform-select" onchange="switchPlatform(this.value)">
+            <!-- Populated dynamically via app.js -->
+          </select>
+        </div>
+
+        <div class="sidebar-footer" id="sidebarStatusFooter">
+          <!-- Populated dynamically via app.js -->
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+
+      <!-- Top Header Bar -->
+      <header class="top-header">
+        <div class="top-header-info">
+          <h2 id="pageTitle"><i data-lucide="layout-dashboard" style="color: #1a73e8;"></i> Performance Overview</h2>
+          <p id="pageSubtitle">Comprehensive Load Testing, Safe Production Capacity & Resource Analysis</p>
+        </div>
+
+        <div class="badge-bar">
+          <span class="badge badge-emerald"><i data-lucide="globe" style="width: 13px;"></i> <span id="hdrEnv">Environment</span></span>
+          <span class="badge badge-sky"><i data-lucide="server" style="width: 13px;"></i> <span id="hdrArch">Architecture</span></span>
+
+          <!-- Animated Top-Right Theme Toggle Switch -->
+          <button class="animated-theme-toggle" id="themeToggleBtn" onclick="toggleTheme()" title="Toggle Light/Dark Theme">
+            <span class="toggle-track">
+              <span class="toggle-thumb" id="themeIconBox">
+                <i data-lucide="sun" class="toggle-icon"></i>
+              </span>
+            </span>
+            <span id="themeBtnText" class="toggle-label">Light Mode</span>
+          </button>
+
+          <!-- Lock Portal Button -->
+          <button class="lock-portal-btn" onclick="lockPortal()" title="Lock Access Portal">
+            <i data-lucide="lock" style="width: 14px; height: 14px;"></i>
+            <span>Lock Portal</span>
+          </button>
+        </div>
+      </header>
+
+      <div class="content-body">
+
+        <!-- 1. OVERVIEW TAB -->
+        <div class="tab-content active" id="tab-overview">
+          <div id="briefingContainer"></div>
+          <div id="overviewKpiContainer"></div>
+          <div id="heatmapContainer"></div>
+          <div id="modelerContainer"></div>
+        </div>
+
+        <!-- 2. COMPARISON TAB -->
+        <div class="tab-content" id="tab-comparison">
+          <section class="section">
+            <div class="section-title">
+              <i data-lucide="bar-chart-2" style="color: #c58af9;"></i> Cross-Job Multi-Metric Performance Analytics
+            </div>
+
+            <div class="chart-grid-2col">
+              <div class="chart-container">
+                <div class="chart-header">
+                  <h3>P95 Latency Scaling Comparison across Job Types</h3>
+                  <span class="badge badge-sky">Safe SLA: &le; 100ms</span>
+                </div>
+                <div class="chart-wrapper">
+                  <canvas id="cmpLatencyChart"></canvas>
+                </div>
+              </div>
+
+              <div class="chart-container">
+                <div class="chart-header">
+                  <h3>Safe Production Capacity RPS Comparison</h3>
+                  <span class="badge badge-emerald">P95 &le; 100ms Safe Baseline</span>
+                </div>
+                <div class="chart-wrapper">
+                  <canvas id="cmpCapacityChart"></canvas>
+                </div>
+              </div>
+
+              <div class="chart-container">
+                <div class="chart-header">
+                  <h3>Failure Rate % Comparison across Target RPS Steps</h3>
+                  <span class="badge badge-amber">Error Rate %</span>
+                </div>
+                <div class="chart-wrapper">
+                  <canvas id="cmpErrorChart"></canvas>
+                </div>
+              </div>
+
+              <div class="chart-container">
+                <div class="chart-header">
+                  <h3>Container CPU Footprint % Comparison</h3>
+                  <span class="badge badge-purple">Resource Usage</span>
+                </div>
+                <div class="chart-wrapper">
+                  <canvas id="cmpCpuChart"></canvas>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div id="cmpMatrixContainer"></div>
+        </div>
+
+        <!-- 3. DYNAMIC JOB DETAIL TABS CONTAINER -->
+        <div id="jobTabsContainer">
+          <!-- Dynamic job detail tabs populated via app.js -->
+        </div>
+
+        <!-- 4. INFRASTRUCTURE SPECS TAB -->
+        <div class="tab-content" id="tab-infrastructure">
+          <div id="infraContainer"></div>
+        </div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
