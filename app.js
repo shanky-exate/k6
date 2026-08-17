@@ -286,6 +286,13 @@ function switchTab(tabId, btn) {
   const target = document.getElementById('tab-' + tabId);
   if (target) target.classList.add('active');
 
+  // Scroll viewport and main content container to top on tab change
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  const mainContent = document.querySelector('.main-content');
+  if (mainContent) mainContent.scrollTop = 0;
+
   const titleEl = document.getElementById('pageTitle');
   const subTitleEl = document.getElementById('pageSubtitle');
 
