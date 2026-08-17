@@ -1340,3 +1340,32 @@ tr:hover td {
   20%, 60% { transform: translateX(-8px); }
   40%, 80% { transform: translateX(8px); }
 }
+
+/* Modeler Mode Buttons */
+.modeler-mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modeler-mode-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-main);
+  border-color: var(--google-blue);
+}
+
+.modeler-mode-btn.active {
+  background: rgba(26, 115, 232, 0.15);
+  color: #1a73e8;
+  border-color: #1a73e8;
+}
+
