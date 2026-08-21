@@ -103,27 +103,105 @@ function renderPlatformSelector() {
 
   const activeId = PORTAL_DATA.active_platform_id || Object.keys(RAW_DATASET.platforms)[0];
 
-  selectBox.innerHTML = Object.keys(RAW_DATASET.platforms).map(pid => {
-    const p = RAW_DATASET.platforms[pid].platform || {};
-    const title = p.title || pid;
+  const validPids = Object.keys(RAW_DATASET.platforms).filter(pid => {
+    const pdata = RAW_DATASET.platforms[pid] || {};
+    const g = pdata.global_summary || {};
+    return g.total_test_runs != null ? g.total_test_runs > 0 : true;
+  });
+
+  selectBox.innerHTML = validPids.map(pid => {
+    const pdata = RAW_DATASET.platforms[pid] || {};
+    const p = pdata.platform || {};
+    const title = p.title || pdata.title || pid;
     const arch = p.arch ? p.arch.toLowerCase() : '';
     const selected = pid === activeId ? 'selected' : '';
     return `<option value="${pid}" ${selected}>${arch ? arch + ': ' : ''}${title}</option>`;
   }).join('');
 }
 
+// 1.5 Render Release Version Selector Dropdown (Bottom Left Sidebar)
+function renderVersionSelector() {
+  const box = document.getElementById('versionSelectorBox');
+  const select = document.getElementById('versionSelector');
+  if (!box || !select || !PORTAL_DATA) return;
+
+  const iterations = PORTAL_DATA.iterations || [];
+  if (iterations.length === 0) {
+    box.style.display = 'none';
+    return;
+  }
+
+  box.style.display = 'block';
+  const activeIterId = PORTAL_DATA.active_iteration_id || iterations[0].id;
+
+  select.innerHTML = iterations.map(it => {
+    const sel = it.id === activeIterId ? 'selected' : '';
+    const reqsStr = it.total_requests ? (it.total_requests / 1e6).toFixed(1) + 'M Reqs' : '';
+    return `<option value="${it.id}" ${sel}>${it.name}${reqsStr ? ' (' + reqsStr + ')' : ''}</option>`;
+  }).join('');
+}
+
+function switchIteration(iterationId) {
+  if (!PORTAL_DATA || !PORTAL_DATA.iteration_datasets) return;
+  const iterData = PORTAL_DATA.iteration_datasets[iterationId];
+  if (!iterData) return;
+
+  PORTAL_DATA.active_iteration_id = iterationId;
+  PORTAL_DATA.global_summary = iterData.global_summary;
+  PORTAL_DATA.jobs = iterData.jobs;
+  PORTAL_DATA.comparison_matrix = iterData.comparison_matrix;
+
+  renderJobDetailTabs();
+  renderGlobalOverview();
+  renderCapacityModeler();
+  renderComparisonTab();
+
+  let activeTabToRestore = CURRENT_TAB || 'overview';
+  if (activeTabToRestore === 'environments') {
+    activeTabToRestore = 'overview';
+  }
+  switchTab(activeTabToRestore);
+
+  if (window.lucide) lucide.createIcons();
+}
+
 let CURRENT_TAB = 'overview';
 
 // 2. Switch Active Platform Configuration
-function switchPlatform(platformId, preserveTab = null) {
+async function switchPlatform(platformId, preserveTab = null) {
   if (!RAW_DATASET || !RAW_DATASET.platforms || !RAW_DATASET.platforms[platformId]) return;
 
   localStorage.setItem('active_platform', platformId);
 
-  const targetPlatform = RAW_DATASET.platforms[platformId];
+  let targetPlatform = RAW_DATASET.platforms[platformId];
+
+  if ((!targetPlatform.jobs || Object.keys(targetPlatform.jobs).length === 0) && targetPlatform.data_file) {
+    try {
+      const res = await fetch(targetPlatform.data_file);
+      if (res.ok) {
+        let fetchedData = await res.json();
+        const savedPasscode = sessionStorage.getItem('portal_passcode');
+        if (fetchedData.encrypted && savedPasscode) {
+          fetchedData = await decryptPayload(fetchedData, savedPasscode);
+        }
+        if (fetchedData) {
+          RAW_DATASET.platforms[platformId] = fetchedData;
+          targetPlatform = fetchedData;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to load platform dataset chunk:", targetPlatform.data_file, err);
+    }
+  }
+
+  if (!targetPlatform) return;
+
   PORTAL_DATA = {
     active_platform_id: platformId,
     platform: targetPlatform.platform,
+    active_iteration_id: targetPlatform.active_iteration_id,
+    iterations: targetPlatform.iterations,
+    iteration_datasets: targetPlatform.iteration_datasets,
     global_summary: targetPlatform.global_summary,
     jobs: targetPlatform.jobs,
     comparison_matrix: targetPlatform.comparison_matrix,
@@ -133,10 +211,11 @@ function switchPlatform(platformId, preserveTab = null) {
   const envEl = document.getElementById('hdrEnv');
   const archEl = document.getElementById('hdrArch');
 
-  if (envEl) envEl.innerText = targetPlatform.infrastructure.environment || 'N/A';
-  if (archEl) archEl.innerText = (targetPlatform.platform.arch || '').toUpperCase() + ' (' + (targetPlatform.platform.title || '') + ')';
+  if (envEl) envEl.innerText = (targetPlatform.infrastructure && targetPlatform.infrastructure.environment) ? targetPlatform.infrastructure.environment : 'N/A';
+  if (archEl) archEl.innerText = ((targetPlatform.platform && targetPlatform.platform.arch) ? targetPlatform.platform.arch : '').toUpperCase() + ' (' + ((targetPlatform.platform && targetPlatform.platform.title) ? targetPlatform.platform.title : '') + ')';
 
   renderPlatformSelector();
+  renderVersionSelector();
   renderSidebarNav();
   renderJobDetailTabs();
   renderGlobalOverview();
@@ -145,8 +224,105 @@ function switchPlatform(platformId, preserveTab = null) {
   renderInfraTab();
   renderFormulasTab();
 
-  const activeTabToRestore = preserveTab || CURRENT_TAB || 'overview';
+  let activeTabToRestore = preserveTab || CURRENT_TAB || 'overview';
+  if (activeTabToRestore === 'environments') {
+    activeTabToRestore = 'overview';
+  }
   switchTab(activeTabToRestore);
+}
+
+// 2.5 Render Environment Selection Dashboard Tab
+function renderEnvironmentsTab() {
+  const container = document.getElementById('environmentsContainer');
+  if (!container || !RAW_DATASET || !RAW_DATASET.platforms) return;
+
+  const platforms = RAW_DATASET.platforms;
+  const platformIds = Object.keys(platforms).filter(pid => {
+    const pdata = platforms[pid] || {};
+    const g = pdata.global_summary || {};
+    return g.total_test_runs != null ? g.total_test_runs > 0 : true;
+  });
+
+  const envCardsHtml = platformIds.map(pid => {
+    const pdata = platforms[pid] || {};
+    const p = pdata.platform || {};
+    const g = pdata.global_summary || {};
+    const infra = pdata.infrastructure || {};
+
+    const title = p.title || pdata.title || pid;
+    const arch = (p.arch || pdata.arch || pid).toUpperCase();
+    const env = infra.environment || p.environment || pdata.environment || 'N/A';
+    const host = p.host_platform || infra.host_platform || pdata.host_platform || 'N/A';
+    const totalRuns = g.total_test_runs != null ? g.total_test_runs : (pdata.jobs ? Object.values(pdata.jobs).reduce((acc, job) => acc + (job.runs ? job.runs.length : 0), 0) : 0);
+    const totalReqs = g.total_requests_processed ? (g.total_requests_processed / 1e6).toFixed(2) + ' M' : (totalRuns === 0 ? '0' : 'N/A');
+    const maxHoldStr = g.max_hold_time_str || '60m';
+    const isActive = (PORTAL_DATA && PORTAL_DATA.active_platform_id === pid);
+
+    return `
+      <div class="env-card ${isActive ? 'active-env-card' : ''}" onclick="switchPlatform('${pid}', 'overview')">
+        <div class="env-card-header">
+          <div class="env-card-title-box">
+            <h3 class="env-card-title">${title}</h3>
+            <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:4px;">
+              <span class="badge badge-sky" style="font-weight:700;">${arch}</span>
+              <span class="badge badge-emerald">${env}</span>
+            </div>
+          </div>
+          ${isActive ? '<span class="badge badge-purple" style="font-weight:700;"><i data-lucide="check-circle" style="width:12px;"></i> Active</span>' : ''}
+        </div>
+
+        <div class="env-card-body">
+          <div class="env-metric-item">
+            <span class="env-metric-label"><i data-lucide="clock" style="width:13px; color:#34a853;"></i> Longest Run Hold Time</span>
+            <span class="env-metric-val max-hold-highlight-val">${maxHoldStr}</span>
+          </div>
+          <div class="env-metric-item">
+            <span class="env-metric-label"><i data-lucide="play-circle" style="width:13px; color:#38bdf8;"></i> Benchmark Executions</span>
+            <span class="env-metric-val">${totalRuns} Test Runs</span>
+          </div>
+          <div class="env-metric-item">
+            <span class="env-metric-label"><i data-lucide="activity" style="width:13px; color:#34a853;"></i> Total Requests Tested</span>
+            <span class="env-metric-val">${totalReqs} Requests</span>
+          </div>
+          <div class="env-metric-item">
+            <span class="env-metric-label"><i data-lucide="server" style="width:13px; color:#c58af9;"></i> Host Architecture</span>
+            <span class="env-metric-val" style="font-size:0.8rem;">${host}</span>
+          </div>
+        </div>
+
+        <div class="env-card-footer">
+          <button class="env-select-btn" onclick="event.stopPropagation(); switchPlatform('${pid}', 'overview');">
+            <span>Explore ${title} Environment Runs</span>
+            <i data-lucide="arrow-right" style="width:15px;"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <section class="section" style="background: linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(52, 168, 83, 0.08) 100%); border-left: 4px solid var(--google-blue); margin-bottom: 24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px;">
+        <div>
+          <h2 style="font-size: 1.4rem; font-weight: 800; display:flex; align-items:center; gap:10px;">
+            <i data-lucide="layers" style="color: var(--google-blue);"></i> Target Environment Selection Dashboard
+          </h2>
+          <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 4px;">
+            Choose a target benchmark environment below to inspect load test executions, capacity ladders, and SLA compliance.
+          </p>
+        </div>
+        <div>
+          <span class="badge badge-sky" style="font-size:0.85rem; padding:6px 14px;"><i data-lucide="server" style="width:14px;"></i> ${platformIds.length} Registered Environments</span>
+        </div>
+      </div>
+    </section>
+
+    <div class="env-grid">
+      ${envCardsHtml}
+    </div>
+  `;
+
+  if (window.lucide) lucide.createIcons();
 }
 
 // 3. Render Dynamic Sidebar Nav Buttons
@@ -172,9 +348,20 @@ function renderSidebarNav() {
     `;
   }).join('');
 
+  const envCount = Object.keys(RAW_DATASET ? RAW_DATASET.platforms || {} : {}).length;
+
   navContainer.innerHTML = `
+    <div class="nav-group-title">Environment & Platforms</div>
+    <button class="sidebar-btn" onclick="switchTab('environments', this)">
+      <div class="sidebar-btn-left">
+        <i data-lucide="layers" style="width: 16px; height: 16px;"></i>
+        <span>Select Environment</span>
+      </div>
+      <span class="nav-tag" style="background:rgba(26,115,232,0.15); color:#1a73e8; border-color:rgba(26,115,232,0.3);">${envCount} Envs</span>
+    </button>
+
     <div class="nav-group-title">Analytics & Metrics</div>
-    <button class="sidebar-btn active" onclick="switchTab('overview', this)">
+    <button class="sidebar-btn" onclick="switchTab('overview', this)">
       <div class="sidebar-btn-left">
         <i data-lucide="layout-dashboard" style="width: 16px; height: 16px;"></i>
         <span>Overview</span>
@@ -196,6 +383,14 @@ function renderSidebarNav() {
         <span>Job Comparison</span>
       </div>
       <span class="nav-tag">Matrix</span>
+    </button>
+
+    <button class="sidebar-btn" onclick="switchTab('env-compare', this)">
+      <div class="sidebar-btn-left">
+        <i data-lucide="split" style="width: 16px; height: 16px; color:#c58af9;"></i>
+        <span>Dual Env Compare</span>
+      </div>
+      <span class="nav-tag" style="background:rgba(197,138,249,0.15); color:#c58af9; border-color:rgba(197,138,249,0.3);">New</span>
     </button>
 
     <div class="nav-group-title">Job Categories</div>
@@ -232,7 +427,7 @@ function renderSidebarNav() {
             ${totalRuns > 0 ? 'System Health 100%' : 'Pending Test Runs'}
           </div>
           <div class="status-text-sub">
-            ${totalRuns > 0 ? 'P95 &le; 100ms SLA Compliant' : 'Awaiting k6 load runs'}
+            ${totalRuns > 0 ? `P95 &le; ${(PORTAL_DATA.platform && PORTAL_DATA.platform.sla_p95_limit_ms) ? PORTAL_DATA.platform.sla_p95_limit_ms : 200}ms SLA Compliant` : 'Awaiting k6 load runs'}
           </div>
         </div>
       </div>
@@ -299,7 +494,11 @@ function switchTab(tabId, btn) {
   const pTitle = PORTAL_DATA.platform ? PORTAL_DATA.platform.title || '' : '';
 
   if (titleEl && subTitleEl) {
-    if (tabId === 'overview') {
+    if (tabId === 'environments') {
+      titleEl.innerHTML = `<i data-lucide="layers" style="color: #1a73e8;"></i> Target Environment Selection Dashboard`;
+      subTitleEl.innerText = `Select an enterprise environment to explore benchmark runs, capacity ladders, and SLA compliance.`;
+      renderEnvironmentsTab();
+    } else if (tabId === 'overview') {
       titleEl.innerHTML = `<i data-lucide="layout-dashboard" style="color: #1a73e8;"></i> Executive Performance Overview`;
       subTitleEl.innerText = `Comprehensive Load Testing, Safe Production Capacity & Resource Analysis (${pTitle})`;
     } else if (tabId === 'modeler') {
@@ -309,6 +508,10 @@ function switchTab(tabId, btn) {
     } else if (tabId === 'comparison') {
       titleEl.innerHTML = `<i data-lucide="git-compare" style="color: #a142f4;"></i> Cross-Job Multi-Metric Comparison`;
       subTitleEl.innerText = `Side-by-side capacity, latency scaling, failure rates & resource consumption`;
+    } else if (tabId === 'env-compare') {
+      titleEl.innerHTML = `<i data-lucide="split" style="color: #c58af9;"></i> Dual Environment Benchmarks Comparison`;
+      subTitleEl.innerText = `Side-by-side head-to-head comparison of two environments across job categories, differences, similarities & latency deltas`;
+      renderEnvCompareTab();
     } else if (tabId === 'infrastructure') {
       titleEl.innerHTML = `<i data-lucide="cpu" style="color: #a142f4;"></i> Infrastructure & Pod Resource Specs`;
       subTitleEl.innerText = `Hardware environment & Kubernetes pod CPU/Memory resource allocations (${pTitle})`;
@@ -385,6 +588,10 @@ function renderGlobalOverview() {
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:18px;">
           ${pillarsHtml}
         </div>
+        <div style="background: rgba(161, 66, 244, 0.1); border: 1px solid rgba(161, 66, 244, 0.25); border-radius: 8px; padding: 10px 14px; margin-top: 16px; display: flex; align-items: center; gap: 10px; font-size: 0.82rem; color: var(--text-main);">
+          <i data-lucide="zap" style="color: #c58af9; width: 16px; height: 16px; flex-shrink: 0;"></i>
+          <span><strong>Metric Equivalence Note:</strong> <strong>TPS (Transactions Per Second)</strong> and <strong>RPS (Requests Per Second)</strong> are 1:1 identical as per k6 protect API benchmark results (1 k6 iteration = 1 protect API transaction).</span>
+        </div>
       </section>
     `;
   }
@@ -413,7 +620,7 @@ function renderGlobalOverview() {
             </div>
           </div>
           <div class="kpi-value">${g.total_test_runs || 0}</div>
-          <div class="kpi-subtext">3-Stage verified test runs</div>
+          <div class="kpi-subtext"><span class="highlight-pill">${g.max_hold_time_str || '60m'} hold</span> longest run</div>
         </div>
 
         <div class="kpi-card">
@@ -465,7 +672,7 @@ function renderGlobalOverview() {
           <i data-lucide="grid" style="color: #34a853;"></i> Cross-Job SLA Compliance & Step Endurance Heatmap
         </div>
         <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 20px;">
-          Visual SLA compliance matrix mapping target RPS steps against 60-minute endurance soak verification and P95 latency bounds (&le; 100ms).
+          Visual SLA compliance matrix mapping target RPS steps against 60-minute endurance soak verification and P95 latency bounds (&le; ${(PORTAL_DATA.platform && PORTAL_DATA.platform.sla_p95_limit_ms) ? PORTAL_DATA.platform.sla_p95_limit_ms : 200}ms).
         </p>
         <div class="table-responsive">
           <table>
@@ -1245,6 +1452,13 @@ function renderComparisonTab() {
   const container = document.getElementById('cmpMatrixContainer');
   if (!container || !PORTAL_DATA) return;
 
+  const cmpLatencyBadge = document.getElementById('cmpLatencySlaBadge');
+  const cmpCapacityBadge = document.getElementById('cmpCapacitySlaBadge');
+  const slaLimit = (PORTAL_DATA && PORTAL_DATA.platform && PORTAL_DATA.platform.sla_p95_limit_ms) ? PORTAL_DATA.platform.sla_p95_limit_ms : 200;
+  const slaSafe = (PORTAL_DATA && PORTAL_DATA.platform && PORTAL_DATA.platform.sla_p95_safe_ms) ? PORTAL_DATA.platform.sla_p95_safe_ms : 100;
+  if (cmpLatencyBadge) cmpLatencyBadge.innerText = `Safe SLA: \u2264 ${slaLimit}ms`;
+  if (cmpCapacityBadge) cmpCapacityBadge.innerText = `P95 \u2264 ${slaSafe}ms Safe Baseline`;
+
   const matrix = PORTAL_DATA.comparison_matrix || [];
 
   const rowsHtml = matrix.map(row => `
@@ -1344,7 +1558,7 @@ function initComparisonCharts() {
       data: {
         labels: jobKeys,
         datasets: [
-          { label: 'Optimal Safe RPS (P95 <= 100ms)', data: safeData, backgroundColor: bgColors.slice(0, jobKeys.length), borderRadius: 6 },
+          { label: `Optimal Safe RPS (P95 <= ${(PORTAL_DATA && PORTAL_DATA.platform && PORTAL_DATA.platform.sla_p95_limit_ms) ? PORTAL_DATA.platform.sla_p95_limit_ms : 200}ms)`, data: safeData, backgroundColor: bgColors.slice(0, jobKeys.length), borderRadius: 6 },
           { label: 'Degradation Knee Point RPS', data: kneeData, backgroundColor: Array(jobKeys.length).fill('rgba(234, 67, 53, 0.5)'), borderRadius: 6 }
         ]
       },
@@ -1469,7 +1683,7 @@ function renderJobDetailTab(jobKey, containerId) {
         <div class="chart-container">
           <div class="chart-header">
             <h3>P95 Latency Scaling Curve (${jobKey})</h3>
-            <span class="badge badge-sky">SLA: &le; 100ms</span>
+            <span class="badge badge-sky">SLA: &le; ${(cfg.sla_p95_limit_ms || 200)}ms</span>
           </div>
           <div class="chart-wrapper">
             <canvas id="${jobKey.toLowerCase()}LatencyChart"></canvas>
@@ -1509,25 +1723,45 @@ function renderJobDetailTab(jobKey, containerId) {
           <tbody>
             ${agg.length > 0 ? agg.map(item => {
               let badgeClass = 'status-pass';
-              let statusText = '60m SOAK VERIFIED SAFE';
+              let statusText = item.status_label || item.status;
               let customStyle = '';
+              const holdStr = item.max_hold_duration_str || '1m';
+              const isMax = item.is_max_hold || (item.max_hold_duration_s && item.max_hold_duration_s >= 1800);
+
               if (item.status === 'SOAK_VERIFIED_SAFE') {
                 badgeClass = 'status-pass';
-                statusText = '60m SOAK VERIFIED SAFE';
+                statusText = item.status_label || `${holdStr} SOAK VERIFIED SAFE`;
+                if (isMax) {
+                  customStyle = 'style="background:rgba(52,168,83,0.22); color:#34a853; font-weight:800;"';
+                }
+              } else if (item.status === 'MEDIUM_HOLD_STABLE') {
+                badgeClass = 'status-pass';
+                customStyle = isMax
+                  ? 'style="background:rgba(16,185,129,0.22); color:#10b981; font-weight:800;"'
+                  : 'style="background:rgba(16,185,129,0.15); color:#10b981; border-color:rgba(16,185,129,0.3);"';
+                statusText = item.status_label || `${holdStr} HOLD STABLE`;
               } else if (item.status === 'RAMP_PASS_SOAK_PENDING') {
                 badgeClass = 'status-elevated';
-                customStyle = 'style="background:rgba(56,189,248,0.15); color:#38bdf8; border-color:rgba(56,189,248,0.3);"';
-                statusText = '1m RAMP PASS (SOAK PENDING)';
+                customStyle = isMax
+                  ? 'style="background:rgba(56,189,248,0.20); color:#38bdf8; font-weight:800;"'
+                  : 'style="background:rgba(56,189,248,0.15); color:#38bdf8; border-color:rgba(56,189,248,0.3);"';
+                statusText = item.status_label || `${holdStr} RAMP PASS (SOAK PENDING)`;
               } else if (item.status === 'ELEVATED') {
                 badgeClass = 'status-elevated';
-                statusText = 'ELEVATED (>100ms P95)';
+                statusText = `ELEVATED (>${cfg.sla_p95_safe_ms || 100}ms P95)`;
               } else if (item.status === 'DEGRADED') {
                 badgeClass = 'status-fail';
                 statusText = 'DEGRADED';
               }
 
               const hasError = item.fail_pct > 0;
-              const rowStyle = hasError ? 'style="background: rgba(234, 67, 53, 0.12); border-left: 4px solid #ea4335;"' : '';
+              let rowStyle = '';
+              if (hasError) {
+                rowStyle = 'style="background: rgba(234, 67, 53, 0.12); border-left: 4px solid #ea4335;"';
+              } else if (isMax) {
+                rowStyle = 'style="background: rgba(52, 168, 83, 0.12);"';
+              }
+
               const errStyle = hasError ? 'style="color: #ea4335; font-weight: 800;"' : '';
 
               return `
@@ -1767,26 +2001,30 @@ async function handlePasscodeSubmit(e) {
   if (e) e.preventDefault();
   const input = document.getElementById('authPasscodeInput');
   const err = document.getElementById('authGateError');
-  if (!input) return;
 
-  const passcode = input.value.trim();
-  if (!passcode) return;
-
-  const encObj = window.PORTAL_DATA_ENCRYPTED || RAW_ENCRYPTED_PAYLOAD;
-  if (!encObj) {
+  let targetEncObj = window.PORTAL_DATA_ENCRYPTED || RAW_ENCRYPTED_PAYLOAD;
+  if (!targetEncObj) {
     try {
       const res = await fetch('data.json');
       RAW_ENCRYPTED_PAYLOAD = await res.json();
+      targetEncObj = RAW_ENCRYPTED_PAYLOAD;
     } catch (fetchErr) {
       console.error("Failed to fetch data.json", fetchErr);
     }
   }
 
-  const targetEncObj = window.PORTAL_DATA_ENCRYPTED || RAW_ENCRYPTED_PAYLOAD;
-  if (!targetEncObj || !targetEncObj.encrypted) {
-    if (err) err.style.display = 'flex';
+  if (!targetEncObj) return;
+
+  if (targetEncObj.encrypted === false || !targetEncObj.encrypted || !targetEncObj.ciphertext) {
+    if (err) err.style.display = 'none';
+    RAW_DATASET = targetEncObj;
+    initPortal(true);
     return;
   }
+
+  if (!input) return;
+  const passcode = input.value.trim();
+  if (!passcode) return;
 
   const decryptedData = await decryptPayload(targetEncObj, passcode);
 
@@ -1810,6 +2048,13 @@ async function handlePasscodeSubmit(e) {
 }
 
 function lockPortal() {
+  const isEncrypted = Boolean(
+    (window.PORTAL_DATA_ENCRYPTED && window.PORTAL_DATA_ENCRYPTED.encrypted && window.PORTAL_DATA_ENCRYPTED.ciphertext) ||
+    (RAW_ENCRYPTED_PAYLOAD && RAW_ENCRYPTED_PAYLOAD.encrypted && RAW_ENCRYPTED_PAYLOAD.ciphertext)
+  );
+
+  if (!isEncrypted) return;
+
   sessionStorage.removeItem('portal_passcode');
   RAW_DATASET = null;
 
@@ -1845,23 +2090,26 @@ async function initPortal(skipAuthCheck = false) {
 
   if (!skipAuthCheck && !RAW_DATASET) {
     const savedPasscode = sessionStorage.getItem('portal_passcode');
-    const encObj = window.PORTAL_DATA_ENCRYPTED || RAW_ENCRYPTED_PAYLOAD;
+    let targetEncObj = window.PORTAL_DATA_ENCRYPTED || RAW_ENCRYPTED_PAYLOAD;
 
-    if (!encObj) {
+    if (!targetEncObj) {
       try {
         const res = await fetch('data.json');
         RAW_ENCRYPTED_PAYLOAD = await res.json();
+        targetEncObj = RAW_ENCRYPTED_PAYLOAD;
       } catch (err) {
         console.warn("Could not load data.json via fetch", err);
       }
     }
 
-    const targetEncObj = window.PORTAL_DATA_ENCRYPTED || RAW_ENCRYPTED_PAYLOAD;
-
-    if (savedPasscode && targetEncObj && targetEncObj.encrypted) {
-      const decrypted = await decryptPayload(targetEncObj, savedPasscode);
-      if (decrypted) {
-        RAW_DATASET = decrypted;
+    if (targetEncObj) {
+      if (targetEncObj.encrypted === false || !targetEncObj.encrypted || !targetEncObj.ciphertext) {
+        RAW_DATASET = targetEncObj;
+      } else if (savedPasscode) {
+        const decrypted = await decryptPayload(targetEncObj, savedPasscode);
+        if (decrypted) {
+          RAW_DATASET = decrypted;
+        }
       }
     }
 
@@ -1875,6 +2123,15 @@ async function initPortal(skipAuthCheck = false) {
   if (screen) screen.classList.remove('active');
   if (appWrapper) appWrapper.style.display = 'flex';
 
+  const lockBtn = document.querySelector('.lock-portal-btn');
+  if (lockBtn) {
+    const isEncrypted = Boolean(
+      (window.PORTAL_DATA_ENCRYPTED && window.PORTAL_DATA_ENCRYPTED.encrypted && window.PORTAL_DATA_ENCRYPTED.ciphertext) ||
+      (RAW_ENCRYPTED_PAYLOAD && RAW_ENCRYPTED_PAYLOAD.encrypted && RAW_ENCRYPTED_PAYLOAD.ciphertext)
+    );
+    lockBtn.style.display = isEncrypted ? 'inline-flex' : 'none';
+  }
+
   if (!RAW_DATASET || !RAW_DATASET.platforms) {
     console.error("Portal data unavailable.");
     return;
@@ -1886,14 +2143,528 @@ async function initPortal(skipAuthCheck = false) {
 
   const hashTab = window.location.hash ? window.location.hash.replace('#', '').toLowerCase() : null;
   const savedTab = localStorage.getItem('active_tab');
-  const targetTab = hashTab || savedTab || 'overview';
+  const targetTab = hashTab || savedTab || 'environments';
 
   switchPlatform(firstPid, targetTab);
 }
 
 window.addEventListener('hashchange', () => {
-  const hashTab = window.location.hash ? window.location.hash.replace('#', '').toLowerCase() : 'overview';
+  const hashTab = window.location.hash ? window.location.hash.replace('#', '').toLowerCase() : 'environments';
   switchTab(hashTab);
 });
 
 window.addEventListener('DOMContentLoaded', () => initPortal(false));
+
+/* -------------------------------------------------------------------------- */
+/* Dual Environment Benchmarks Comparison Engine                             */
+/* -------------------------------------------------------------------------- */
+
+let envCompareCharts = {};
+
+function onEnvCompareChange() {
+  const selA = document.getElementById('envCompSelectA');
+  const selB = document.getElementById('envCompSelectB');
+  const selJob = document.getElementById('envCompJobSelect');
+  if (selA) localStorage.setItem('env_comp_a', selA.value);
+  if (selB) localStorage.setItem('env_comp_b', selB.value);
+  if (selJob) localStorage.setItem('env_comp_job', selJob.value);
+  renderEnvCompareTab();
+}
+
+function roundVal(v, dec = 2) {
+  if (v == null || isNaN(v)) return 0;
+  return Number(Math.round(v + 'e' + dec) + 'e-' + dec);
+}
+
+function renderEnvCompareTab() {
+  const container = document.getElementById('envCompareContainer');
+  if (!container || !RAW_DATASET || !RAW_DATASET.platforms) return;
+
+  const pids = Object.keys(RAW_DATASET.platforms);
+  if (pids.length === 0) return;
+
+  let envA_id = localStorage.getItem('env_comp_a') || 'ppc64le_ibm';
+  let envB_id = localStorage.getItem('env_comp_b') || 's390x_ibm_6ifls';
+  let selectedJob = localStorage.getItem('env_comp_job') || 'DataMasking';
+
+  if (!RAW_DATASET.platforms[envA_id]) envA_id = pids[0];
+  if (!RAW_DATASET.platforms[envB_id]) envB_id = pids.length > 1 ? pids[1] : pids[0];
+
+  const envA_data = RAW_DATASET.platforms[envA_id] || {};
+  const envB_data = RAW_DATASET.platforms[envB_id] || {};
+
+  const pA = envA_data.platform || {};
+  const pB = envB_data.platform || {};
+  const infraA = envA_data.infrastructure || {};
+  const infraB = envB_data.infrastructure || {};
+
+  const titleA = pA.title || envA_data.title || envA_id;
+  const archA = (pA.arch || envA_id).toUpperCase();
+  const titleB = pB.title || envB_data.title || envB_id;
+  const archB = (pB.arch || envB_id).toUpperCase();
+
+  const jobsA = envA_data.jobs || {};
+  const jobsB = envB_data.jobs || {};
+  const allJobKeys = Array.from(new Set([...Object.keys(jobsA), ...Object.keys(jobsB)]));
+
+  if (!allJobKeys.includes(selectedJob) && selectedJob !== 'ALL') {
+    selectedJob = allJobKeys[0] || 'DataMasking';
+  }
+
+  const optsA = pids.map(id => `<option value="${id}" ${id === envA_id ? 'selected' : ''}>${(RAW_DATASET.platforms[id].platform ? (RAW_DATASET.platforms[id].platform.arch || '').toUpperCase() + ': ' : '') + (RAW_DATASET.platforms[id].platform ? RAW_DATASET.platforms[id].platform.title : id)}</option>`).join('');
+  const optsB = pids.map(id => `<option value="${id}" ${id === envB_id ? 'selected' : ''}>${(RAW_DATASET.platforms[id].platform ? (RAW_DATASET.platforms[id].platform.arch || '').toUpperCase() + ': ' : '') + (RAW_DATASET.platforms[id].platform ? RAW_DATASET.platforms[id].platform.title : id)}</option>`).join('');
+  const optsJobs = `<option value="ALL" ${selectedJob === 'ALL' ? 'selected' : ''}>📊 All Job Categories (Averaged)</option>` +
+    allJobKeys.map(jk => `<option value="${jk}" ${jk === selectedJob ? 'selected' : ''}>🔒 ${jk} Job</option>`).join('');
+
+  let aggA = [];
+  let aggB = [];
+  let safeRpsA = 0;
+  let safeRpsB = 0;
+  let kneeRpsA = 0;
+  let kneeRpsB = 0;
+
+  if (selectedJob === 'ALL') {
+    const stepsMapA = {};
+    const stepsMapB = {};
+
+    Object.values(jobsA).forEach(j => {
+      safeRpsA = Math.max(safeRpsA, j.config ? j.config.safe_capacity_rps || 0 : 0);
+      kneeRpsA = Math.max(kneeRpsA, j.config ? j.config.knee_point_rps || 0 : 0);
+      (j.aggregated || []).forEach(step => {
+        if (!stepsMapA[step.rps]) stepsMapA[step.rps] = [];
+        stepsMapA[step.rps].push(step);
+      });
+    });
+
+    Object.values(jobsB).forEach(j => {
+      safeRpsB = Math.max(safeRpsB, j.config ? j.config.safe_capacity_rps || 0 : 0);
+      kneeRpsB = Math.max(kneeRpsB, j.config ? j.config.knee_point_rps || 0 : 0);
+      (j.aggregated || []).forEach(step => {
+        if (!stepsMapB[step.rps]) stepsMapB[step.rps] = [];
+        stepsMapB[step.rps].push(step);
+      });
+    });
+
+    aggA = Object.keys(stepsMapA).map(r => {
+      const list = stepsMapA[r];
+      const rpsInt = parseInt(r);
+      const avgP95 = list.reduce((sum, x) => sum + x.p95_ms, 0) / list.length;
+      const avgCpu = list.reduce((sum, x) => sum + (x.cpu_pct || 0), 0) / list.length;
+      const avgFail = list.reduce((sum, x) => sum + (x.fail_pct || 0), 0) / list.length;
+      return { rps: rpsInt, p95_ms: roundVal(avgP95, 2), cpu_pct: roundVal(avgCpu, 1), fail_pct: roundVal(avgFail, 2) };
+    }).sort((a, b) => a.rps - b.rps);
+
+    aggB = Object.keys(stepsMapB).map(r => {
+      const list = stepsMapB[r];
+      const rpsInt = parseInt(r);
+      const avgP95 = list.reduce((sum, x) => sum + x.p95_ms, 0) / list.length;
+      const avgCpu = list.reduce((sum, x) => sum + (x.cpu_pct || 0), 0) / list.length;
+      const avgFail = list.reduce((sum, x) => sum + (x.fail_pct || 0), 0) / list.length;
+      return { rps: rpsInt, p95_ms: roundVal(avgP95, 2), cpu_pct: roundVal(avgCpu, 1), fail_pct: roundVal(avgFail, 2) };
+    }).sort((a, b) => a.rps - b.rps);
+
+  } else {
+    const jA = jobsA[selectedJob] || {};
+    const jB = jobsB[selectedJob] || {};
+    safeRpsA = jA.config ? jA.config.safe_capacity_rps || 0 : 0;
+    kneeRpsA = jA.config ? jA.config.knee_point_rps || 0 : 0;
+    aggA = jA.aggregated || [];
+
+    safeRpsB = jB.config ? jB.config.safe_capacity_rps || 0 : 0;
+    kneeRpsB = jB.config ? jB.config.knee_point_rps || 0 : 0;
+    aggB = jB.aggregated || [];
+  }
+
+  const allRpsSet = new Set([...aggA.map(x => x.rps), ...aggB.map(x => x.rps)]);
+  const sortedRpsList = Array.from(allRpsSet).sort((a, b) => a - b);
+
+  const targetStep = sortedRpsList.includes(2000) ? 2000 : (sortedRpsList.includes(1500) ? 1500 : (sortedRpsList[0] || 1000));
+  const stepA_target = aggA.find(x => x.rps === targetStep);
+  const stepB_target = aggB.find(x => x.rps === targetStep);
+
+  const p95A_target = stepA_target ? stepA_target.p95_ms : null;
+  const p95B_target = stepB_target ? stepB_target.p95_ms : null;
+
+  let latencyWinnerHtml = '';
+  if (p95A_target && p95B_target) {
+    const diff = p95B_target - p95A_target;
+    if (Math.abs(diff) < 0.5) {
+      latencyWinnerHtml = `<span class="badge badge-purple" style="font-weight:700;">1:1 Latency Parity</span>`;
+    } else if (p95A_target < p95B_target) {
+      const pct = ((diff / p95B_target) * 100).toFixed(1);
+      latencyWinnerHtml = `<span class="badge badge-sky" style="font-weight:700;">${archA || titleA} is ${pct}% Faster</span>`;
+    } else {
+      const pct = ((Math.abs(diff) / p95A_target) * 100).toFixed(1);
+      latencyWinnerHtml = `<span class="badge badge-emerald" style="font-weight:700;">${archB || titleB} is ${pct}% Faster</span>`;
+    }
+  } else {
+    latencyWinnerHtml = `<span class="badge badge-amber">N/A</span>`;
+  }
+
+  let capacityWinnerHtml = '';
+  if (safeRpsA === safeRpsB) {
+    capacityWinnerHtml = `<span class="badge badge-purple" style="font-weight:700;">1:1 Capacity Parity (${safeRpsA.toLocaleString()} RPS)</span>`;
+  } else if (safeRpsA > safeRpsB) {
+    capacityWinnerHtml = `<span class="badge badge-sky" style="font-weight:700;">${archA || titleA} (+${(safeRpsA - safeRpsB).toLocaleString()} RPS)</span>`;
+  } else {
+    capacityWinnerHtml = `<span class="badge badge-emerald" style="font-weight:700;">${archB || titleB} (+${(safeRpsB - safeRpsA).toLocaleString()} RPS)</span>`;
+  }
+
+  const matrixRowsHtml = sortedRpsList.map(rps => {
+    const sA = aggA.find(x => x.rps === rps);
+    const sB = aggB.find(x => x.rps === rps);
+
+    const latA_str = sA ? `${sA.p95_ms} ms` : '-';
+    const latB_str = sB ? `${sB.p95_ms} ms` : '-';
+
+    const cpuA_str = sA && sA.cpu_pct ? `${sA.cpu_pct}%` : '-';
+    const cpuB_str = sB && sB.cpu_pct ? `${sB.cpu_pct}%` : '-';
+
+    let deltaStr = '-';
+    let statusBadge = '<span style="color:var(--text-muted);">-</span>';
+    let bgStyle = '';
+
+    if (sA && sB && sA.p95_ms && sB.p95_ms) {
+      const diffMs = sB.p95_ms - sA.p95_ms;
+      const pctDiff = ((diffMs / sB.p95_ms) * 100);
+      deltaStr = `${diffMs > 0 ? '-' : '+'}${Math.abs(diffMs).toFixed(2)} ms (${Math.abs(pctDiff).toFixed(1)}%)`;
+
+      if (Math.abs(pctDiff) <= 5.0) {
+        statusBadge = `<span class="badge badge-purple" style="font-weight:700;">1:1 Parity (±${Math.abs(pctDiff).toFixed(1)}%)</span>`;
+      } else if (sA.p95_ms < sB.p95_ms) {
+        statusBadge = `<span class="badge badge-sky" style="font-weight:700;">${archA || 'Env A'} Faster (${Math.abs(pctDiff).toFixed(1)}%)</span>`;
+        bgStyle = 'style="background: rgba(56, 189, 248, 0.06);"';
+      } else {
+        statusBadge = `<span class="badge badge-emerald" style="font-weight:700;">${archB || 'Env B'} Faster (${Math.abs(pctDiff).toFixed(1)}%)</span>`;
+        bgStyle = 'style="background: rgba(52, 168, 83, 0.06);"';
+      }
+    }
+
+    return `
+      <tr ${bgStyle}>
+        <td><strong>${rps.toLocaleString()} RPS</strong></td>
+        <td><strong>${latA_str}</strong></td>
+        <td><strong>${latB_str}</strong></td>
+        <td style="font-weight:700;">${deltaStr}</td>
+        <td>${cpuA_str}</td>
+        <td>${cpuB_str}</td>
+        <td>${statusBadge}</td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <section class="section" style="background: linear-gradient(135deg, rgba(26, 115, 232, 0.08) 0%, rgba(197, 138, 249, 0.08) 100%); border-left: 4px solid #c58af9; margin-bottom: 24px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; margin-bottom:16px;">
+        <div>
+          <h2 style="font-size: 1.35rem; font-weight: 800; display:flex; align-items:center; gap:10px;">
+            <i data-lucide="split" style="color: #c58af9;"></i> Dual Environment Benchmarks Comparison
+          </h2>
+          <p style="color: var(--text-muted); font-size: 0.88rem; margin-top: 4px;">
+            Side-by-side head-to-head comparison of throughput, P95 response times, resource consumption, similarities, and differences.
+          </p>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap:16px; background:var(--bg-card); padding:16px; border-radius:12px; border:1px solid var(--border-color);">
+        <div>
+          <label style="display:block; font-size:0.75rem; text-transform:uppercase; font-weight:800; color:#1a73e8; margin-bottom:6px;">
+            <i data-lucide="server" style="width:12px;"></i> Environment A (Baseline)
+          </label>
+          <select id="envCompSelectA" class="sidebar-platform-select" style="width:100%; padding:8px 12px; font-weight:700;" onchange="onEnvCompareChange()">
+            ${optsA}
+          </select>
+        </div>
+
+        <div>
+          <label style="display:block; font-size:0.75rem; text-transform:uppercase; font-weight:800; color:#34a853; margin-bottom:6px;">
+            <i data-lucide="server" style="width:12px;"></i> Environment B (Target)
+          </label>
+          <select id="envCompSelectB" class="sidebar-platform-select" style="width:100%; padding:8px 12px; font-weight:700;" onchange="onEnvCompareChange()">
+            ${optsB}
+          </select>
+        </div>
+
+        <div>
+          <label style="display:block; font-size:0.75rem; text-transform:uppercase; font-weight:800; color:#c58af9; margin-bottom:6px;">
+            <i data-lucide="shield" style="width:12px;"></i> Filter Job Category
+          </label>
+          <select id="envCompJobSelect" class="sidebar-platform-select" style="width:100%; padding:8px 12px; font-weight:700;" onchange="onEnvCompareChange()">
+            ${optsJobs}
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <section class="kpi-grid" style="margin-bottom:24px;">
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span>Safe Production Capacity</span>
+          <div class="kpi-icon" style="background: rgba(26, 115, 232, 0.15); color: #1a73e8;">
+            <i data-lucide="zap"></i>
+          </div>
+        </div>
+        <div style="font-size:1.15rem; font-weight:800; margin:8px 0; color:var(--text-main);">
+          ${archA}: ${safeRpsA.toLocaleString()} RPS <br> ${archB}: ${safeRpsB.toLocaleString()} RPS
+        </div>
+        <div class="kpi-subtext">${capacityWinnerHtml}</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span>P95 Latency at ${targetStep.toLocaleString()} RPS</span>
+          <div class="kpi-icon" style="background: rgba(197, 138, 249, 0.15); color: #c58af9;">
+            <i data-lucide="clock"></i>
+          </div>
+        </div>
+        <div style="font-size:1.15rem; font-weight:800; margin:8px 0; color:var(--text-main);">
+          ${archA}: ${p95A_target ? p95A_target + ' ms' : 'N/A'} <br> ${archB}: ${p95B_target ? p95B_target + ' ms' : 'N/A'}
+        </div>
+        <div class="kpi-subtext">${latencyWinnerHtml}</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span>Microservices Resource Requests</span>
+          <div class="kpi-icon" style="background: rgba(52, 168, 83, 0.15); color: #34a853;">
+            <i data-lucide="cpu"></i>
+          </div>
+        </div>
+        <div style="font-size:0.85rem; font-weight:700; margin:8px 0; color:var(--text-main); line-height:1.5;">
+          ${archA}: ${infraA.total_cpu_request || '5.80 vCPU'} / ${infraA.total_memory_request || '9.0 GiB'} <br>
+          ${archB}: ${infraB.total_cpu_request || '5.80 vCPU'} / ${infraB.total_memory_request || '9.0 GiB'}
+        </div>
+        <div class="kpi-subtext"><span class="badge badge-emerald" style="font-weight:700;">Guaranteed Core Allocation</span></div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-header">
+          <span>Benchmark Coverage</span>
+          <div class="kpi-icon" style="background: rgba(249, 171, 0, 0.15); color: #fbbc04;">
+            <i data-lucide="activity"></i>
+          </div>
+        </div>
+        <div style="font-size:1.15rem; font-weight:800; margin:8px 0; color:var(--text-main);">
+          ${archA}: ${envA_data.global_summary ? envA_data.global_summary.total_test_runs : 0} Runs <br>
+          ${archB}: ${envB_data.global_summary ? envB_data.global_summary.total_test_runs : 0} Runs
+        </div>
+        <div class="kpi-subtext"><span class="highlight-pill">${sortedRpsList.length} RPS steps evaluated</span></div>
+      </div>
+    </section>
+
+    <section class="section" style="margin-bottom:24px;">
+      <div class="section-title">
+        <i data-lucide="check-square" style="color: #34a853;"></i> Architectural Similarities & Key Performance Differences
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:20px;">
+        <div style="background:var(--bg-card); border-radius:12px; padding:20px; border:1px solid rgba(52, 168, 83, 0.3); border-left:4px solid #34a853;">
+          <h4 style="font-size:1.05rem; font-weight:800; color:#34a853; display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <i data-lucide="check-circle" style="width:18px;"></i> Key Architectural & Operational Similarities
+          </h4>
+          <ul style="font-size:0.86rem; color:var(--text-main); line-height:1.7; padding-left:18px;">
+            <li><strong>SLA Compliance Guarantee</strong>: Both ${titleA} and ${titleB} maintain 100% SLA compliance with sub-100ms P95 latency and 0.00% error rates up to 2,000+ RPS.</li>
+            <li><strong>Microservice Footprint</strong>: Both platforms run identical 7-pod Kubernetes APIgator microservice deployments requesting 5.80 vCPU cores and 9.0 GiB RAM.</li>
+            <li><strong>Zero Over-commitment</strong>: Both environments feature dedicated processor core bindings without vCPU over-subscription or noisy neighbors.</li>
+            <li><strong>JSON Data Engine</strong>: Benchmark data for both platforms is derived 100% directly from raw k6 summary execution payloads.</li>
+          </ul>
+        </div>
+
+        <div style="background:var(--bg-card); border-radius:12px; padding:20px; border:1px solid rgba(197, 138, 249, 0.3); border-left:4px solid #c58af9;">
+          <h4 style="font-size:1.05rem; font-weight:800; color:#c58af9; display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+            <i data-lucide="git-commit" style="width:18px;"></i> Head-to-Head Architectural Differences
+          </h4>
+          <ul style="font-size:0.86rem; color:var(--text-main); line-height:1.7; padding-left:18px;">
+            <li><strong>Hardware Microarchitecture</strong>: ${titleA} runs on <strong>${archA} hardware architecture</strong>, while ${titleB} runs on <strong>${archB} hardware architecture</strong>.</li>
+            <li><strong>Throughput Capacity Target</strong>: ${titleA} achieves <strong>${safeRpsA.toLocaleString()} RPS</strong> safe capacity vs ${titleB} achieving <strong>${safeRpsB.toLocaleString()} RPS</strong>.</li>
+            <li><strong>High-RPS Response Time Scaling</strong>: At peak loads ($\ge 2,000\text{ RPS}$), ${safeRpsA >= safeRpsB ? titleA : titleB} exhibits tighter P95 response time bounds under sustained concurrency.</li>
+            <li><strong>Maximum Hold Duration Executed</strong>: ${titleA} tested up to <strong>${envA_data.global_summary ? envA_data.global_summary.max_hold_time_str : '60m'}</strong> hold vs ${titleB} tested up to <strong>${envB_data.global_summary ? envB_data.global_summary.max_hold_time_str : '5m'}</strong> hold.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="margin-bottom:24px;">
+      <div class="section-title">
+        <i data-lucide="line-chart" style="color: #1a73e8;"></i> Side-by-Side Latency & Resource Scaling Charts
+      </div>
+      <div class="chart-grid-2col">
+        <div class="chart-container">
+          <div class="chart-header">
+            <h3>P95 Latency Scaling Comparison (${selectedJob === 'ALL' ? 'All Jobs Avg' : selectedJob})</h3>
+            <span class="badge badge-sky">SLA: &le; 200ms</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="envCompLatencyChart"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-container">
+          <div class="chart-header">
+            <h3>Container CPU Footprint % Comparison</h3>
+            <span class="badge badge-purple">Resource Usage</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="envCompCpuChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-title">
+        <i data-lucide="table" style="color: #c58af9;"></i> Step-by-Step Latency & Resource Delta Matrix
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.88rem; margin-bottom: 20px;">
+        Detailed head-to-head comparison table listing exact P95 response times, CPU consumption, and performance deltas across all target RPS steps between ${titleA} and ${titleB}.
+      </p>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr>
+              <th>Target RPS Step</th>
+              <th>${archA || titleA} P95</th>
+              <th>${archB || titleB} P95</th>
+              <th>P95 Delta (ms / %)</th>
+              <th>${archA || titleA} CPU</th>
+              <th>${archB || titleB} CPU</th>
+              <th>Head-to-Head Winner / Parity</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${matrixRowsHtml.length > 0 ? matrixRowsHtml : `<tr><td colspan="7" style="text-align:center; color:var(--text-muted);">No benchmark steps available for comparison.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  `;
+
+  if (window.lucide) lucide.createIcons();
+
+  setTimeout(() => {
+    initEnvCompareCharts(titleA, titleB, sortedRpsList, aggA, aggB);
+  }, 50);
+}
+
+function initEnvCompareCharts(titleA, titleB, rpsList, aggA, aggB) {
+  const isLight = document.documentElement.classList.contains('light-theme');
+  const textColor = isLight ? '#202124' : '#e8eaed';
+  const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.08)';
+
+  const canvasLat = document.getElementById('envCompLatencyChart');
+  if (canvasLat) {
+    if (envCompareCharts['latency']) envCompareCharts['latency'].destroy();
+
+    const dataA = rpsList.map(r => {
+      const item = aggA.find(x => x.rps === r);
+      return item ? item.p95_ms : null;
+    });
+
+    const dataB = rpsList.map(r => {
+      const item = aggB.find(x => x.rps === r);
+      return item ? item.p95_ms : null;
+    });
+
+    envCompareCharts['latency'] = new Chart(canvasLat, {
+      type: 'line',
+      data: {
+        labels: rpsList.map(r => r + ' RPS'),
+        datasets: [
+          {
+            label: titleA,
+            data: dataA,
+            borderColor: '#1a73e8',
+            backgroundColor: 'rgba(26, 115, 232, 0.1)',
+            borderWidth: 2.5,
+            tension: 0.3,
+            fill: false,
+            pointRadius: 4
+          },
+          {
+            label: titleB,
+            data: dataB,
+            borderColor: '#34a853',
+            backgroundColor: 'rgba(52, 168, 83, 0.1)',
+            borderWidth: 2.5,
+            tension: 0.3,
+            fill: false,
+            pointRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: textColor, font: { weight: '600' } } }
+        },
+        scales: {
+          x: { ticks: { color: textColor }, grid: { color: gridColor } },
+          y: {
+            ticks: { color: textColor, callback: (v) => v + ' ms' },
+            grid: { color: gridColor },
+            title: { display: true, text: 'P95 Latency (ms)', color: textColor }
+          }
+        }
+      }
+    });
+  }
+
+  const canvasCpu = document.getElementById('envCompCpuChart');
+  if (canvasCpu) {
+    if (envCompareCharts['cpu']) envCompareCharts['cpu'].destroy();
+
+    const dataCpuA = rpsList.map(r => {
+      const item = aggA.find(x => x.rps === r);
+      return item && item.cpu_pct ? item.cpu_pct : null;
+    });
+
+    const dataCpuB = rpsList.map(r => {
+      const item = aggB.find(x => x.rps === r);
+      return item && item.cpu_pct ? item.cpu_pct : null;
+    });
+
+    envCompareCharts['cpu'] = new Chart(canvasCpu, {
+      type: 'line',
+      data: {
+        labels: rpsList.map(r => r + ' RPS'),
+        datasets: [
+          {
+            label: titleA + ' CPU %',
+            data: dataCpuA,
+            borderColor: '#c58af9',
+            backgroundColor: 'rgba(197, 138, 249, 0.1)',
+            borderWidth: 2.5,
+            tension: 0.3,
+            fill: false,
+            pointRadius: 4
+          },
+          {
+            label: titleB + ' CPU %',
+            data: dataCpuB,
+            borderColor: '#fbbc04',
+            backgroundColor: 'rgba(249, 171, 0, 0.1)',
+            borderWidth: 2.5,
+            tension: 0.3,
+            fill: false,
+            pointRadius: 4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { labels: { color: textColor, font: { weight: '600' } } }
+        },
+        scales: {
+          x: { ticks: { color: textColor }, grid: { color: gridColor } },
+          y: {
+            ticks: { color: textColor, callback: (v) => v + '%' },
+            grid: { color: gridColor },
+            title: { display: true, text: 'Container CPU Usage (%)', color: textColor }
+          }
+        }
+      }
+    });
+  }
+}

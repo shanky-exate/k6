@@ -1369,3 +1369,169 @@ tr:hover td {
   border-color: #1a73e8;
 }
 
+.env-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-top: 20px;
+}
+
+@media (max-width: 992px) {
+  .env-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.env-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  box-shadow: var(--card-shadow);
+  position: relative;
+  overflow: hidden;
+}
+
+.env-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--google-blue);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35), 0 0 15px rgba(26, 115, 232, 0.2);
+}
+
+.env-card.active-env-card {
+  border-color: var(--google-blue);
+  background: linear-gradient(180deg, var(--bg-card) 0%, rgba(26, 115, 232, 0.06) 100%);
+}
+
+.env-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.env-card-title-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.env-card-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-main);
+  line-height: 1.3;
+}
+
+.env-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 16px 0;
+  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.env-metric-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.86rem;
+}
+
+.env-metric-label {
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.env-metric-val {
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.env-card-footer {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.env-select-btn {
+  width: 100%;
+  padding: 11px 16px;
+  border-radius: 9px;
+  border: 1px solid var(--google-blue);
+  background: rgba(26, 115, 232, 0.12);
+  color: #38bdf8;
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.env-card:hover .env-select-btn {
+  background: var(--google-blue);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(26, 115, 232, 0.35);
+}
+
+/* Badge Bar Iteration Selector */
+.badge-bar-selector-box {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--google-blue);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-main);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+.badge-bar-select {
+  background: transparent;
+  color: var(--text-main);
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  outline: none;
+}
+
+.badge-bar-select option {
+  background: var(--bg-card);
+  color: var(--text-main);
+}
+
+/* Max Hold Time Highlight Badges & Cell Highlighting */
+.max-hold-highlight-val {
+  color: #34a853 !important;
+  font-weight: 800 !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.max-hold-cell-bg {
+  background: rgba(52, 168, 83, 0.22) !important;
+}
+
+.highlight-pill {
+  color: #34a853;
+  font-weight: 700;
+}
+

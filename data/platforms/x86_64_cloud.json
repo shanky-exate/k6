@@ -1,0 +1,583 @@
+{
+  "platform": {
+    "id": "x86_64_cloud",
+    "title": "Intel/AMD Cloud Cluster (x86_64)",
+    "arch": "x86_64",
+    "environment": "jpm.sbox.exate.co",
+    "host_platform": "x86_64 Kubernetes Cloud Cluster",
+    "cpu_budget_cores": 0.0,
+    "total_cpu_request": "N/A",
+    "total_memory_request": "N/A",
+    "peak_cpu_used_pct": "N/A",
+    "peak_memory_used_mb": "N/A",
+    "build_info": "N/A",
+    "is_active": true,
+    "services": [
+      {
+        "name": "APIgator (Gateway)",
+        "role": "Security Gateway",
+        "badge_color": "sky",
+        "plain_role": "Primary API gateway handling inbound request validation & policy evaluation.",
+        "limits": {
+          "cpu": "N/A",
+          "memory": "N/A"
+        },
+        "requests": {
+          "cpu": "N/A",
+          "memory": "N/A"
+        }
+      }
+    ],
+    "ibm_architectural_features": [
+      {
+        "feature": "x86_64 Cloud Infrastructure",
+        "spec": "Multi-Tenant Kubernetes",
+        "desc": "Deployed on x86_64 cloud cluster nodes for DataMasking performance benchmarking."
+      }
+    ],
+    "jvm_options": "N/A",
+    "sla_p95_limit_ms": 200
+  },
+  "global_summary": {
+    "total_job_types": 4,
+    "total_test_runs": 0,
+    "total_requests_processed": 0,
+    "total_data_sent_gb": 0.0,
+    "total_data_rec_gb": 0.0,
+    "briefing": {
+      "title": "Exate Enterprise Security Gateway on Intel/AMD Cloud Cluster (x86_64)",
+      "subtitle": "No benchmark runs recorded yet for Intel/AMD Cloud Cluster (x86_64).",
+      "pillars": [
+        {
+          "title": "Throughput Status",
+          "color": "#1a73e8",
+          "icon": "zap",
+          "items": [
+            "Pending load test execution. Place raw k6 summaries under data/ folder to populate throughput."
+          ]
+        },
+        {
+          "title": "Hardware Resource Allocation",
+          "color": "#34a853",
+          "icon": "cpu",
+          "items": [
+            "Host Platform: x86_64 Kubernetes Cloud Cluster",
+            "CPU Request: N/A",
+            "RAM Request: N/A",
+            "CPU Budget: 0.0 Cores Budget"
+          ]
+        },
+        {
+          "title": "Enterprise Platform & Reliability",
+          "color": "#c58af9",
+          "icon": "shield-check",
+          "items": [
+            "Environment: jpm.sbox.exate.co",
+            "Build Info: N/A",
+            "Verification Status: Pending Benchmark Verification",
+            "Benchmark Executions: 0 Test Runs"
+          ]
+        }
+      ]
+    },
+    "heatmap": {
+      "steps": [
+        100,
+        500,
+        1000,
+        1500,
+        2000,
+        2500,
+        2600,
+        2800
+      ],
+      "rows": [
+        {
+          "job_key": "DataMasking",
+          "job_title": "DataMasking Job",
+          "category": "One-Way Hashing & Obfuscation Transform",
+          "cells": [
+            {
+              "rps": 100,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 1000,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 1500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2000,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2600,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2800,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            }
+          ]
+        },
+        {
+          "job_key": "Restrict",
+          "job_title": "Restrict Job",
+          "category": "Attribute-Based Access Control (ABAC) Policy Evaluation",
+          "cells": [
+            {
+              "rps": 100,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 1000,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 1500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2000,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2600,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2800,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            }
+          ]
+        },
+        {
+          "job_key": "Pseudonymise",
+          "job_title": "Pseudonymise Job",
+          "category": "Reversible Tokenization Privacy Transform",
+          "cells": [
+            {
+              "rps": 100,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 1000,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 1500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2000,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2600,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2800,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            }
+          ]
+        },
+        {
+          "job_key": "Reconstruct",
+          "job_title": "Reconstruct Job",
+          "category": "Token Detokenization & Payload Reconstruction",
+          "cells": [
+            {
+              "rps": 100,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 1000,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 1500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2000,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2500,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2600,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            },
+            {
+              "rps": 2800,
+              "status": "NONE",
+              "p95_ms": null,
+              "label": "N/A",
+              "bg": "transparent",
+              "fg": "#9aa0a6"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "jobs": {
+    "DataMasking": {
+      "config": {
+        "title": "DataMasking Job",
+        "category": "One-Way Hashing & Obfuscation Transform",
+        "plain_concept": "DataMasking converts sensitive text into irreversible hash values using cryptographic hashing algorithms. It secures data at rest and in transit.",
+        "max_valid_rps": 10000,
+        "knee_point_rps": 9000,
+        "safe_capacity_rps": 4000,
+        "hpa_target_per_pod_rps": 1000,
+        "safe_reason": "4,000 RPS verified on x86_64 cloud cluster with P95 latency at 22.93ms and 0.0% error rate.",
+        "soak_tested_steps": [
+          500,
+          1000,
+          2000,
+          3000,
+          4000
+        ],
+        "testing_stage": "Ramp Verification Complete"
+      },
+      "summary": {
+        "total_runs": 0,
+        "total_requests": 0,
+        "data_sent_gb": 0.0,
+        "data_rec_gb": 0.0,
+        "pass_rate_pct": 0.0
+      },
+      "aggregated": [],
+      "runs": []
+    },
+    "Restrict": {
+      "config": {
+        "title": "Restrict Job",
+        "category": "Attribute-Based Access Control (ABAC) Policy Evaluation",
+        "plain_concept": "Restrict evaluates incoming requestor identities, roles, and contextual policies to dynamically grant or block data access.",
+        "max_valid_rps": 0,
+        "knee_point_rps": 0,
+        "safe_capacity_rps": 0,
+        "hpa_target_per_pod_rps": 400,
+        "safe_reason": "N/A",
+        "soak_tested_steps": [],
+        "testing_stage": "N/A"
+      },
+      "summary": {
+        "total_runs": 0,
+        "total_requests": 0,
+        "data_sent_gb": 0.0,
+        "data_rec_gb": 0.0,
+        "pass_rate_pct": 0.0
+      },
+      "aggregated": [],
+      "runs": []
+    },
+    "Pseudonymise": {
+      "config": {
+        "title": "Pseudonymise Job",
+        "category": "Reversible Tokenization Privacy Transform",
+        "plain_concept": "Pseudonymise replaces sensitive identifiers with reversible tokens. Authorized users can later detokenize data.",
+        "max_valid_rps": 0,
+        "knee_point_rps": 0,
+        "safe_capacity_rps": 0,
+        "hpa_target_per_pod_rps": 400,
+        "safe_reason": "N/A",
+        "soak_tested_steps": [],
+        "testing_stage": "N/A"
+      },
+      "summary": {
+        "total_runs": 0,
+        "total_requests": 0,
+        "data_sent_gb": 0.0,
+        "data_rec_gb": 0.0,
+        "pass_rate_pct": 0.0
+      },
+      "aggregated": [],
+      "runs": []
+    },
+    "Reconstruct": {
+      "config": {
+        "title": "Reconstruct Job",
+        "category": "Token Detokenization & Payload Reconstruction",
+        "plain_concept": "Reconstruct validates policy permissions and detokenizes encrypted tokens back to plain text for authorized requestors.",
+        "max_valid_rps": 0,
+        "knee_point_rps": 0,
+        "safe_capacity_rps": 0,
+        "hpa_target_per_pod_rps": 320,
+        "safe_reason": "N/A",
+        "soak_tested_steps": [],
+        "testing_stage": "N/A"
+      },
+      "summary": {
+        "total_runs": 0,
+        "total_requests": 0,
+        "data_sent_gb": 0.0,
+        "data_rec_gb": 0.0,
+        "pass_rate_pct": 0.0
+      },
+      "aggregated": [],
+      "runs": []
+    }
+  },
+  "comparison_matrix": [
+    {
+      "job_key": "DataMasking",
+      "title": "DataMasking Job",
+      "category": "One-Way Hashing & Obfuscation Transform",
+      "endpoint": "/api/protect (4 Pods)",
+      "safe_capacity_rps": 4000,
+      "knee_point_rps": 9000,
+      "p95_safe_ms": "N/A",
+      "p99_safe_ms": "N/A",
+      "fail_pct_safe": 0.0,
+      "total_requests": 0,
+      "hpa_target_per_pod_rps": 800,
+      "sla_p95_limit_ms": 200.0,
+      "sla_p95_safe_ms": 100.0,
+      "sla_p99_limit_ms": 1000.0
+    },
+    {
+      "job_key": "Restrict",
+      "title": "Restrict Job",
+      "category": "Attribute-Based Access Control (ABAC) Policy Evaluation",
+      "endpoint": "/api/protect (4 Pods)",
+      "safe_capacity_rps": 0,
+      "knee_point_rps": 0,
+      "p95_safe_ms": "N/A",
+      "p99_safe_ms": "N/A",
+      "fail_pct_safe": 0.0,
+      "total_requests": 0,
+      "hpa_target_per_pod_rps": 400,
+      "sla_p95_limit_ms": 200.0,
+      "sla_p95_safe_ms": 100.0,
+      "sla_p99_limit_ms": 1000.0
+    },
+    {
+      "job_key": "Pseudonymise",
+      "title": "Pseudonymise Job",
+      "category": "Reversible Tokenization Privacy Transform",
+      "endpoint": "/api/protect (4 Pods)",
+      "safe_capacity_rps": 0,
+      "knee_point_rps": 0,
+      "p95_safe_ms": "N/A",
+      "p99_safe_ms": "N/A",
+      "fail_pct_safe": 0.0,
+      "total_requests": 0,
+      "hpa_target_per_pod_rps": 400,
+      "sla_p95_limit_ms": 200.0,
+      "sla_p95_safe_ms": 100.0,
+      "sla_p99_limit_ms": 1000.0
+    },
+    {
+      "job_key": "Reconstruct",
+      "title": "Reconstruct Job",
+      "category": "Token Detokenization & Payload Reconstruction",
+      "endpoint": "/api/protect (4 Pods)",
+      "safe_capacity_rps": 0,
+      "knee_point_rps": 0,
+      "p95_safe_ms": "N/A",
+      "p99_safe_ms": "N/A",
+      "fail_pct_safe": 0.0,
+      "total_requests": 0,
+      "hpa_target_per_pod_rps": 320,
+      "sla_p95_limit_ms": 200.0,
+      "sla_p95_safe_ms": 100.0,
+      "sla_p99_limit_ms": 1000.0
+    }
+  ],
+  "infrastructure": {
+    "environment": "jpm.sbox.exate.co",
+    "host_platform": "x86_64 Kubernetes Cloud Cluster",
+    "totals": {
+      "total_cpu_request": "N/A",
+      "total_memory_request": "N/A",
+      "peak_cpu_used_pct": "N/A",
+      "peak_memory_used_mb": "N/A"
+    },
+    "build_info": "N/A",
+    "services": [
+      {
+        "name": "APIgator (Gateway)",
+        "role": "Security Gateway",
+        "badge_color": "sky",
+        "plain_role": "Primary API gateway handling inbound request validation & policy evaluation.",
+        "limits": {
+          "cpu": "N/A",
+          "memory": "N/A"
+        },
+        "requests": {
+          "cpu": "N/A",
+          "memory": "N/A"
+        }
+      }
+    ],
+    "ibm_architectural_features": [
+      {
+        "feature": "x86_64 Cloud Infrastructure",
+        "spec": "Multi-Tenant Kubernetes",
+        "desc": "Deployed on x86_64 cloud cluster nodes for DataMasking performance benchmarking."
+      }
+    ]
+  },
+  "encrypted": false
+}

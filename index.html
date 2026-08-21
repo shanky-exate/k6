@@ -82,11 +82,20 @@
         <!-- Target Platform Selector Dropdown at Bottom of Sidebar -->
         <div class="sidebar-platform-container">
           <div class="sidebar-platform-label">
-            <i data-lucide="cpu" style="width: 13px; color: #1a73e8;"></i> Target Platform
+            <i data-lucide="cpu" style="width: 13px; color: #1a73e8;"></i> Target Environment
           </div>
           <select id="platformSelector" class="sidebar-platform-select" onchange="switchPlatform(this.value)">
             <!-- Populated dynamically via app.js -->
           </select>
+
+          <div id="versionSelectorBox" style="margin-top: 10px; display: none;">
+            <div class="sidebar-platform-label">
+              <i data-lucide="tag" style="width: 13px; color: #34a853;"></i> Release Version
+            </div>
+            <select id="versionSelector" class="sidebar-platform-select" onchange="switchIteration(this.value)">
+              <!-- Populated dynamically via app.js -->
+            </select>
+          </div>
         </div>
 
         <div class="sidebar-footer" id="sidebarStatusFooter">
@@ -102,10 +111,11 @@
       <header class="top-header">
         <div class="top-header-info">
           <h2 id="pageTitle"><i data-lucide="layout-dashboard" style="color: #1a73e8;"></i> Performance Overview</h2>
-          <p id="pageSubtitle">Comprehensive Load Testing, Safe Production Capacity & Resource Analysis</p>
+          <p id="pageSubtitle">Comprehensive Load Testing, Safe Production Capacity & Resource Analysis (TPS = RPS per k6 results)</p>
         </div>
 
         <div class="badge-bar">
+          <span class="badge badge-purple" title="Transactions Per Second (TPS) and Requests Per Second (RPS) are 1:1 identical as per k6 results"><i data-lucide="zap" style="width: 13px;"></i> TPS = RPS (1:1)</span>
           <span class="badge badge-emerald"><i data-lucide="globe" style="width: 13px;"></i> <span id="hdrEnv">Environment</span></span>
           <span class="badge badge-sky"><i data-lucide="server" style="width: 13px;"></i> <span id="hdrArch">Architecture</span></span>
 
@@ -129,8 +139,13 @@
 
       <div class="content-body">
 
+        <!-- 0. ENVIRONMENTS SELECTION DASHBOARD TAB -->
+        <div class="tab-content active" id="tab-environments">
+          <div id="environmentsContainer"></div>
+        </div>
+
         <!-- 1. OVERVIEW TAB -->
-        <div class="tab-content active" id="tab-overview">
+        <div class="tab-content" id="tab-overview">
           <div id="briefingContainer"></div>
           <div id="overviewKpiContainer"></div>
           <div id="heatmapContainer"></div>
@@ -147,7 +162,7 @@
               <div class="chart-container">
                 <div class="chart-header">
                   <h3>P95 Latency Scaling Comparison across Job Types</h3>
-                  <span class="badge badge-sky">Safe SLA: &le; 100ms</span>
+                  <span class="badge badge-sky" id="cmpLatencySlaBadge">Safe SLA: &le; 200ms</span>
                 </div>
                 <div class="chart-wrapper">
                   <canvas id="cmpLatencyChart"></canvas>
@@ -157,7 +172,7 @@
               <div class="chart-container">
                 <div class="chart-header">
                   <h3>Safe Production Capacity RPS Comparison</h3>
-                  <span class="badge badge-emerald">P95 &le; 100ms Safe Baseline</span>
+                  <span class="badge badge-emerald" id="cmpCapacitySlaBadge">Safe SLA Baseline</span>
                 </div>
                 <div class="chart-wrapper">
                   <canvas id="cmpCapacityChart"></canvas>
@@ -187,6 +202,11 @@
           </section>
 
           <div id="cmpMatrixContainer"></div>
+        </div>
+
+        <!-- 2.5 DUAL ENVIRONMENT COMPARISON TAB -->
+        <div class="tab-content" id="tab-env-compare">
+          <div id="envCompareContainer"></div>
         </div>
 
         <!-- 3. DYNAMIC JOB DETAIL TABS CONTAINER -->
